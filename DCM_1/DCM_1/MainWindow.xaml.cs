@@ -47,7 +47,7 @@ namespace DCM_1
                 _fileName = openDialog.FileName;
                 SourceImage = new BitmapImage(new Uri(openDialog.FileName));
                 OnPropertyChanged("SourceImage");
-                var bitmap = new System.Drawing.Bitmap(_fileName);
+                var bitmap = new Bitmap(_fileName);
                 var image = new double[bitmap.Width*bitmap.Height][];
                 var k = 0;
                 for (int i = 0; i < bitmap.Width; i++)
