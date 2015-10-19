@@ -21,5 +21,7 @@
         <Label Content="{Binding SourceFileSize,ElementName =Wind}" HorizontalAlignment="Left" Margin="91,36,0,0" Grid.Row="1" VerticalAlignment="Top" />
         <Label Content="{Binding PerformanceComparison,ElementName =Wind}" HorizontalAlignment="Left" Margin="168,10,0,0" Grid.Row="1" VerticalAlignment="Top" x:Name="PerformanceLabel"/>
         <Label Content="{Binding ResultFileSize,ElementName =Wind}" HorizontalAlignment="Left" Margin="129,62,0,0" Grid.Row="1" VerticalAlignment="Top" x:Name="AchivedSizeLabel"/>
+        <Slider Grid.Column="1" Margin="10,10,10,0" Grid.Row="1" VerticalAlignment="Top" Height="26" Maximum="8" Value="{Binding CodeBookSizePow,ElementName=Wind}" Minimum="1"/>
+        <Label Content="{Binding CodeBookSizePow, ElementName=Wind}" Grid.Column="1" HorizontalAlignment="Left" Margin="10,36,0,0" Grid.Row="1" VerticalAlignment="Top"/>
     </Grid>
 </Window>
