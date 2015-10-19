@@ -20,7 +20,7 @@ namespace DCM_1
     /// <summary>
     /// Логика взаимодействия для MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : INotifyPropertyChanged
+    internal sealed partial class MainWindow : INotifyPropertyChanged
     {
         public ImageSource SourceImage { get; set; }
         public BitmapImage ResultImage { get; set; }
@@ -34,7 +34,7 @@ namespace DCM_1
             set
             {
                 _codeBookSizePow = value; 
-                OnPropertyChanged("CodeBookSizePow");
+                OnPropertyChanged();
             }
         }
 
@@ -108,7 +108,7 @@ namespace DCM_1
                 }
             }
 
-            var image = colors.GroupBy(x => x)
+            var image = colors.GroupBy(x => x).AsParallel()
                 .Select(x => new[] {(double) x.Key.R, (double) x.Key.B, (double) x.Key.G, (double) x.Key.A})
                 .AsParallel()
                 .ToArray();
@@ -166,7 +166,7 @@ namespace DCM_1
         public event PropertyChangedEventHandler PropertyChanged;
 
         [NotifyPropertyChangedInvocator]
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        private void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             var handler = PropertyChanged;
             if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
@@ -178,6 +178,6 @@ namespace DCM_1
         public int Width { get; set; }
         public int Height { get; set; }
         public byte[][] CodeBook { get; set; }
-        public Tuple<byte,short>[] Image { get; set; }
+        public Tuple<byte,ushort>[] Image { get; set; }
     }
 }

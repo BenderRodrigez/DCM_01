@@ -6,18 +6,18 @@ namespace DCM_1
     class RLE
     {
         private readonly byte[] _source;
-        private readonly List<Tuple<byte,short>> _compressedStream;
+        private readonly List<Tuple<byte,ushort>> _compressedStream;
 
         public RLE(byte[] data)
         {
             _source = data;
-            _compressedStream = new List<Tuple<byte, short>>(data.Length);
+            _compressedStream = new List<Tuple<byte, ushort>>(data.Length);
         }
 
-        public Tuple<byte,short>[] Compress()
+        public Tuple<byte,ushort>[] Compress()
         {
             var curentWord = _source[0];
-            var runLength = (short)1;
+            var runLength = (ushort)0;
             for (int i = 1; i < _source.Length; i++)
             {
                 if (_source[i] == curentWord)
@@ -26,21 +26,21 @@ namespace DCM_1
                 }
                 else
                 {
-                    _compressedStream.Add(new Tuple<byte, short>(curentWord, runLength));
+                    _compressedStream.Add(new Tuple<byte, ushort>(curentWord, runLength));
                     curentWord = _source[i];
-                    runLength = 1;
+                    runLength = 0;
                 }
             }
-            _compressedStream.Add(new Tuple<byte, short>(curentWord, runLength));
+            _compressedStream.Add(new Tuple<byte, ushort>(curentWord, runLength));
             return _compressedStream.ToArray();
         }
 
-        public static byte[] Decompress(IEnumerable<Tuple<byte, short>> data)
+        public static byte[] Decompress(IEnumerable<Tuple<byte, ushort>> data)
         {
             var result = new List<byte>();
             foreach (var cortage in data)
             {
-                for (var i = 0; i < cortage.Item2; i++)
+                for (var i = 0; i <= cortage.Item2; i++)
                 {
                     result.Add(cortage.Item1);
                 }

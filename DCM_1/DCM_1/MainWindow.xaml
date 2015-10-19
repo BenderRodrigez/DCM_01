@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MainWindow" Height="350" Width="525"
-        x:Name="Wind">
+        x:Name="Wind" x:ClassModifier="internal">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="258*"/>
