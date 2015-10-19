@@ -25,6 +25,8 @@ namespace DCM_1
         public ImageSource SourceImage { get; set; }
         public BitmapImage ResultImage { get; set; }
         public string PerformanceComparison { get; set; }
+        public string SourceFileSize { get; set; }
+        public string ResultFileSize { get; set; }
         private string _fileName;
         private VectorQuantization _vq;
         private Stopwatch _sompressStopWath;
@@ -53,12 +55,13 @@ namespace DCM_1
             _decompressStopWath = new Stopwatch();
             _decompressStopWath.Start();
             var comprBitmap = new Bitmap(_compressed.Width, _compressed.Height);
+            var img = RLE.Decompress(_compressed.Image);
             var k = 0;
             for (int i = 0; i < comprBitmap.Width; i++)
             {
                 for (int j = 0; j < comprBitmap.Height; j++)
                 {
-                    var pos = _compressed.Image[k];
+                    var pos = img[k];
                     comprBitmap.SetPixel(i, j,
                         Color.FromArgb(_compressed.CodeBook[pos][3], _compressed.CodeBook[pos][0], _compressed.CodeBook[pos][2],
                             _compressed.CodeBook[pos][1]));
@@ -111,20 +114,23 @@ namespace DCM_1
                             {
                                 (byte) Math.Round(x[0]), (byte) Math.Round(x[1]), (byte) Math.Round(x[2]),
                                 (byte) Math.Round(x[3])
-                            }).ToArray(),
-                Image = new byte[bitmap.Width*bitmap.Height]
+                            }).ToArray()
             };
             k = 0;
+            var img = new byte[bitmap.Width*bitmap.Height];
             for (int i = 0; i < bitmap.Width; i++)
             {
                 for (int j = 0; j < bitmap.Height; j++)
                 {
                     var color = bitmap.GetPixel(i, j);
                     var pos = _vq.QuantazationIndex(new[] {(double) color.R, color.B, color.G, color.A});
-                    _compressed.Image[k] = (byte) pos;
+                    img[k] = (byte) pos;
                     k++;
                 }
             }
+            var rle = new RLE(img);
+            _compressed.Image = rle.Compress();
+
             _sompressStopWath.Stop();
             Wind.Dispatcher.Invoke(Decompress);
             Wind.Dispatcher.Invoke(SetResults);
@@ -132,8 +138,17 @@ namespace DCM_1
 
         private void SetResults()
         {
-            var val = _sompressStopWath.ElapsedMilliseconds/(double)_decompressStopWath.ElapsedMilliseconds;
+            var val = _decompressStopWath.ElapsedMilliseconds / (double)_sompressStopWath.ElapsedMilliseconds;
             PerformanceComparison = string.Format("1/{0:F3}", val);
+
+            SourceFileSize = _compressed.Width*_compressed.Height*4 + " байт";
+
+
+            var compressedFileSize = _compressed.CodeBook.Length*4 + sizeof (int) + sizeof (int) + _compressed.Image.Length*3;
+            ResultFileSize = compressedFileSize + " байт";
+            OnPropertyChanged("PerformanceComparison");
+            OnPropertyChanged("ResultFileSize");
+            OnPropertyChanged("SourceFileSize");
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -151,6 +166,6 @@ namespace DCM_1
         public int Width { get; set; }
         public int Height { get; set; }
         public byte[][] CodeBook { get; set; }
-        public byte[] Image { get; set; }
+        public Tuple<byte,short>[] Image { get; set; }
     }
 }
