@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using DCM_1.Annotations;
 using Microsoft.Win32;
+using TestHaarCSharp;
 using Color = System.Drawing.Color;
 
 namespace DCM_1
@@ -68,6 +69,7 @@ namespace DCM_1
                     k++;
                 }
             }
+            comprBitmap = ApplyHaarTransform(false, false, 1, comprBitmap);
             _decompressStopWath.Stop();
             var stream = new MemoryStream();
             comprBitmap.Save(stream, ImageFormat.Png);
@@ -84,6 +86,7 @@ namespace DCM_1
             OnPropertyChanged("SourceImage");
             var bitmap = new Bitmap(_fileName);
             _sompressStopWath.Start();
+            bitmap = ProcessHaarTransform(bitmap);
             var k = 0;
             var colors = new List<Color>();
             for (int i = 0; i < bitmap.Width; i++)
@@ -134,6 +137,34 @@ namespace DCM_1
             _sompressStopWath.Stop();
             Wind.Dispatcher.Invoke(Decompress);
             Wind.Dispatcher.Invoke(SetResults);
+        }
+
+        private Bitmap ProcessHaarTransform(Bitmap bmp)
+        {
+            return ApplyHaarTransform(true, false, 1, bmp);
+        }
+
+        private Bitmap ApplyHaarTransform(bool forward, bool safe, int iterations, Bitmap bmp)
+        {
+            var maxScale = WaveletTransform.GetMaxScale(bmp.Width, bmp.Height);
+            if (iterations < 1 || iterations > maxScale)
+            {
+                MessageBox.Show(string.Format("Iteration must be Integer from 1 to {0}", maxScale));
+                return new Bitmap(bmp.Width, bmp.Height);
+            }
+
+            var channels = ColorChannels.CreateColorChannels(safe, bmp.Width, bmp.Height);
+
+            var transform = WaveletTransform.CreateTransform(forward, iterations);
+
+            var imageProcessor = new ImageProcessor(channels, transform);
+            imageProcessor.ApplyTransform(bmp);
+
+            if (forward)
+            {
+                return new Bitmap(bmp);
+            }
+            return new Bitmap(bmp.Width, bmp.Height);
         }
 
         private void SetResults()
