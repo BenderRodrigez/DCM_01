@@ -21,19 +21,31 @@ namespace DCM_1
     /// <summary>
     /// Логика взаимодействия для MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : INotifyPropertyChanged
+    internal sealed partial class MainWindow : INotifyPropertyChanged
     {
         public ImageSource SourceImage { get; set; }
         public BitmapImage ResultImage { get; set; }
         public string PerformanceComparison { get; set; }
         public string SourceFileSize { get; set; }
         public string ResultFileSize { get; set; }
+
+        public int CodeBookSizePow
+        {
+            get { return _codeBookSizePow; }
+            set
+            {
+                _codeBookSizePow = value; 
+                OnPropertyChanged();
+            }
+        }
+
         private string _fileName;
         private VectorQuantization _vq;
         private Stopwatch _sompressStopWath;
         private Stopwatch _decompressStopWath;
         private readonly OpenFileDialog _openDialog = new OpenFileDialog();
         private CompressedImage _compressed;
+        private int _codeBookSizePow = 6;
 
         public MainWindow()
         {
@@ -99,12 +111,12 @@ namespace DCM_1
                 }
             }
 
-            var image = colors.GroupBy(x => x)
+            var image = colors.GroupBy(x => x).AsParallel()
                 .Select(x => new[] {(double) x.Key.R, (double) x.Key.B, (double) x.Key.G, (double) x.Key.A})
                 .AsParallel()
                 .ToArray();
 
-            _vq = new VectorQuantization(image, 4, 64);
+            _vq = new VectorQuantization(image, 4, (int)Math.Pow(2, CodeBookSizePow));
 
             _compressed = new CompressedImage
             {
@@ -185,7 +197,7 @@ namespace DCM_1
         public event PropertyChangedEventHandler PropertyChanged;
 
         [NotifyPropertyChangedInvocator]
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        private void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             var handler = PropertyChanged;
             if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
@@ -197,6 +209,6 @@ namespace DCM_1
         public int Width { get; set; }
         public int Height { get; set; }
         public byte[][] CodeBook { get; set; }
-        public Tuple<byte,short>[] Image { get; set; }
+        public Tuple<byte,ushort>[] Image { get; set; }
     }
 }
