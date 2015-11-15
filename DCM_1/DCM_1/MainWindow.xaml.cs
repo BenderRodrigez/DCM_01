@@ -12,6 +12,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using DCM_1.Annotations;
+using Huffman;
 using Microsoft.Win32;
 using TestHaarCSharp;
 using Color = System.Drawing.Color;
@@ -28,6 +29,7 @@ namespace DCM_1
         public string PerformanceComparison { get; set; }
         public string SourceFileSize { get; set; }
         public string ResultFileSize { get; set; }
+        public bool VQCompression { get; set; }
 
         public int CodeBookSizePow
         {
@@ -46,6 +48,7 @@ namespace DCM_1
         private readonly OpenFileDialog _openDialog = new OpenFileDialog();
         private CompressedImage _compressed;
         private int _codeBookSizePow = 6;
+        private byte[] _compressedData;
 
         public MainWindow()
         {
@@ -67,6 +70,7 @@ namespace DCM_1
         {
             _decompressStopWath = new Stopwatch();
             _decompressStopWath.Start();
+            _compressed.FromByteArray(HuffmanEncoder.Decode(_compressedData));
             var comprBitmap = new Bitmap(_compressed.Width, _compressed.Height);
             var img = RLE.Decompress(_compressed.Image);
             var k = 0;
@@ -76,7 +80,7 @@ namespace DCM_1
                 {
                     var pos = img[k];
                     comprBitmap.SetPixel(i, j,
-                        Color.FromArgb(_compressed.CodeBook[pos][3], _compressed.CodeBook[pos][0], _compressed.CodeBook[pos][2],
+                        Color.FromArgb(_compressed.CodeBook[pos][0], _compressed.CodeBook[pos][2],
                             _compressed.CodeBook[pos][1]));
                     k++;
                 }
@@ -91,14 +95,12 @@ namespace DCM_1
             OnPropertyChanged("ResultImage");
         }
 
-        private void Compress()
+        private void VqCompress()
         {
             _sompressStopWath = new Stopwatch();
             _fileName = _openDialog.FileName;
             OnPropertyChanged("SourceImage");
             var bitmap = new Bitmap(_fileName);
-            _sompressStopWath.Start();
-            bitmap = ProcessHaarTransform(bitmap);
             var k = 0;
             var colors = new List<Color>();
             for (int i = 0; i < bitmap.Width; i++)
@@ -112,11 +114,11 @@ namespace DCM_1
             }
 
             var image = colors.GroupBy(x => x).AsParallel()
-                .Select(x => new[] {(double) x.Key.R, (double) x.Key.B, (double) x.Key.G, (double) x.Key.A})
+                .Select(x => new[] { (double)x.Key.R, (double)x.Key.B, (double)x.Key.G })
                 .AsParallel()
                 .ToArray();
 
-            _vq = new VectorQuantization(image, 4, (int)Math.Pow(2, CodeBookSizePow));
+            _vq = new VectorQuantization(image, 3, (int)Math.Pow(2, CodeBookSizePow));
 
             _compressed = new CompressedImage
             {
@@ -126,34 +128,51 @@ namespace DCM_1
                     _vq.CodeBook.Select(
                         x =>
                             new[]
-                            {
-                                (byte) Math.Round(x[0]), (byte) Math.Round(x[1]), (byte) Math.Round(x[2]),
-                                (byte) Math.Round(x[3])
-                            }).ToArray()
+                                {
+                                    (byte) Math.Round(x[0]), (byte) Math.Round(x[1]), (byte) Math.Round(x[2])
+                                }).ToArray()
             };
+
             k = 0;
-            var img = new byte[bitmap.Width*bitmap.Height];
+            var img = new byte[bitmap.Width * bitmap.Height];
             for (int i = 0; i < bitmap.Width; i++)
             {
                 for (int j = 0; j < bitmap.Height; j++)
                 {
                     var color = bitmap.GetPixel(i, j);
-                    var pos = _vq.QuantazationIndex(new[] {(double) color.R, color.B, color.G, color.A});
-                    img[k] = (byte) pos;
+                    var pos = _vq.QuantazationIndex(new[] { (double)color.R, color.B, color.G });
+                    img[k] = (byte)pos;
                     k++;
                 }
             }
             var rle = new RLE(img);
             _compressed.Image = rle.Compress();
-
+            _compressedData = _compressed.ToByteArray();
+            _compressedData = HuffmanEncoder.Encode(_compressedData);
             _sompressStopWath.Stop();
-            Wind.Dispatcher.Invoke(Decompress);
-            Wind.Dispatcher.Invoke(SetResults);
         }
 
-        private Bitmap ProcessHaarTransform(Bitmap bmp)
+        private void Compress()
         {
-            return ApplyHaarTransform(true, false, 1, bmp);
+            if(VQCompression) VqCompress();
+            else
+            {
+                _sompressStopWath = new Stopwatch();
+                _fileName = _openDialog.FileName;
+                OnPropertyChanged("SourceImage");
+                var bitmap = new Bitmap(_fileName);
+                _sompressStopWath.Start();
+                bitmap = ApplyHaarTransform(true, false, 1, bitmap);
+
+                var rle = new RLE(img);
+                _compressed.Image = rle.Compress();
+                _compressedData = _compressed.ToByteArray();
+                _compressedData = HuffmanEncoder.Encode(_compressedData);
+
+                _sompressStopWath.Stop();
+            }
+            Wind.Dispatcher.Invoke(Decompress);
+            Wind.Dispatcher.Invoke(SetResults);
         }
 
         private Bitmap ApplyHaarTransform(bool forward, bool safe, int iterations, Bitmap bmp)
@@ -171,12 +190,7 @@ namespace DCM_1
 
             var imageProcessor = new ImageProcessor(channels, transform);
             imageProcessor.ApplyTransform(bmp);
-
-            if (forward)
-            {
-                return new Bitmap(bmp);
-            }
-            return new Bitmap(bmp.Width, bmp.Height);
+            return bmp;
         }
 
         private void SetResults()
@@ -187,7 +201,7 @@ namespace DCM_1
             SourceFileSize = _compressed.Width*_compressed.Height*4 + " байт";
 
 
-            var compressedFileSize = _compressed.CodeBook.Length*4 + sizeof (int) + sizeof (int) + _compressed.Image.Length*3;
+            var compressedFileSize = _compressedData.Length;
             ResultFileSize = compressedFileSize + " байт";
             OnPropertyChanged("PerformanceComparison");
             OnPropertyChanged("ResultFileSize");
@@ -204,11 +218,67 @@ namespace DCM_1
         }
     }
 
+    struct DwtCompressedImage
+    {
+        public int[] Image;
+        public int Width;
+        public int Height;
+    }
+
     struct CompressedImage
     {
         public int Width { get; set; }
         public int Height { get; set; }
         public byte[][] CodeBook { get; set; }
         public Tuple<byte,ushort>[] Image { get; set; }
+
+        public void FromByteArray(byte[] data)
+        {
+            var int32 = new byte[4];
+            Array.Copy(data, int32, 4);
+            Width = BitConverter.ToInt32(int32, 0);
+            Array.Copy(data, 4, int32, 0, 4);
+            Height = BitConverter.ToInt32(int32, 0);
+            var cbSize = data[8];
+            var cb = new List<byte[]>();
+            for (int i = 0; i <= cbSize; i++)
+            {
+                var codeWord = new byte[3];
+                Array.Copy(data, 9 + i*3, codeWord, 0, 3);
+                cb.Add(codeWord);
+            }
+            CodeBook = cb.ToArray();
+
+            var img = new List<Tuple<byte, ushort>>(data.Length - 12 + cbSize*3);
+            for (int i = 12 + cbSize*3; i < data.Length - 2; i += 3)
+            {
+                var single = new byte[2];
+                Array.Copy(data, i + 1, single, 0, 2);
+                img.Add(new Tuple<byte, ushort>(data[i], BitConverter.ToUInt16(single, 0)));
+            }
+            Image = img.ToArray();
+        }
+
+        public byte[] ToByteArray()
+        {
+            var bytes = new List<byte>();
+
+            bytes.AddRange(BitConverter.GetBytes(Width));
+            bytes.AddRange(BitConverter.GetBytes(Height));
+
+            var cbSize = (byte) (CodeBook.Length - 1);
+            bytes.Add(cbSize);
+            foreach (var b in CodeBook)
+            {
+                bytes.AddRange(b);
+            }
+
+            foreach (var tuple in Image)
+            {
+                bytes.Add(tuple.Item1);
+                bytes.AddRange(BitConverter.GetBytes(tuple.Item2));
+            }
+            return bytes.ToArray();
+        }
     }
 }

@@ -106,6 +106,10 @@
       <Project>{EB65E31D-DA49-4467-B869-D4D9DAA7E98A}</Project>
       <Name>HaarCSharp</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Huffman\Huffman.csproj">
+      <Project>{722E2C9F-6561-49E3-A325-4A305F389A2B}</Project>
+      <Name>Huffman</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

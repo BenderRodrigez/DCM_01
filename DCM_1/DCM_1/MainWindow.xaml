@@ -15,13 +15,21 @@
         <Image Source="{Binding SourceImage,ElementName = Wind}"/>
         <Image Grid.Row="0" Grid.Column="1" Source="{Binding ResultImage,ElementName = Wind}"/>
         <Button Content="Открыть" Grid.Column="1" Margin="0,0,10,9" Grid.Row="1" Height="20" VerticalAlignment="Bottom" Click="OpenButton_OnClick" HorizontalAlignment="Right" Width="75"/>
-        <Label Content="Соотношение по времени:" HorizontalAlignment="Left" Margin="10,10,0,0" Grid.Row="1" VerticalAlignment="Top"/>
-        <Label Content="Исх. Размер:" HorizontalAlignment="Left" Margin="10,36,0,0" Grid.Row="1" VerticalAlignment="Top"/>
-        <Label Content="Полученый размер:" HorizontalAlignment="Left" Margin="10,62,0,0" Grid.Row="1" VerticalAlignment="Top"/>
-        <Label Content="{Binding SourceFileSize,ElementName =Wind}" HorizontalAlignment="Left" Margin="91,36,0,0" Grid.Row="1" VerticalAlignment="Top" />
-        <Label Content="{Binding PerformanceComparison,ElementName =Wind}" HorizontalAlignment="Left" Margin="168,10,0,0" Grid.Row="1" VerticalAlignment="Top" x:Name="PerformanceLabel"/>
-        <Label Content="{Binding ResultFileSize,ElementName =Wind}" HorizontalAlignment="Left" Margin="129,62,0,0" Grid.Row="1" VerticalAlignment="Top" x:Name="AchivedSizeLabel"/>
+        <Label Content="Соотношение по времени:" HorizontalAlignment="Left" Margin="10,10,0,0" Grid.Row="1"
+               Grid.Column="0" VerticalAlignment="Top"/>
+        <Label Content="Исх. Размер:" HorizontalAlignment="Left" Margin="10,36,0,0" Grid.Row="1" Grid.Column="0"
+               VerticalAlignment="Top"/>
+        <Label Content="Полученый размер:" HorizontalAlignment="Left" Margin="10,62,0,0" Grid.Row="1" Grid.Column="0"
+               VerticalAlignment="Top"/>
+        <Label Content="{Binding SourceFileSize,ElementName =Wind}" HorizontalAlignment="Left" Margin="91,36,0,0" Grid.Row="1"
+               Grid.Column="0" VerticalAlignment="Top" />
+        <Label Content="{Binding PerformanceComparison,ElementName =Wind}" HorizontalAlignment="Left" Margin="168,10,0,0" Grid.Row="1"
+               Grid.Column="0" VerticalAlignment="Top" x:Name="PerformanceLabel"/>
+        <Label Content="{Binding ResultFileSize,ElementName =Wind}" HorizontalAlignment="Left" Margin="129,62,0,0" Grid.Row="1"
+               Grid.Column="0" VerticalAlignment="Top" x:Name="AchivedSizeLabel"/>
         <Slider Grid.Column="1" Margin="10,10,10,0" Grid.Row="1" VerticalAlignment="Top" Height="26" Maximum="8" Value="{Binding CodeBookSizePow,ElementName=Wind}" Minimum="1"/>
         <Label Content="{Binding CodeBookSizePow, ElementName=Wind}" Grid.Column="1" HorizontalAlignment="Left" Margin="10,36,0,0" Grid.Row="1" VerticalAlignment="Top"/>
+        <RadioButton Content="Хаффман-RLE-VQ" Grid.Column="1" Margin="10,57,0,0" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" Width="115" IsChecked="{Binding VQCompression,ElementName=Wind, Mode=TwoWay}"/>
+        <RadioButton Content="Хаффман-RLE-DWT" Grid.Column="1" HorizontalAlignment="Left" Margin="10,77,0,0" Grid.Row="1" VerticalAlignment="Top"/>
     </Grid>
 </Window>
