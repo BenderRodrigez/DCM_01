@@ -54,6 +54,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="VqImage.cs" />
+    <Compile Include="DwtImage.cs" />
+    <Compile Include="ICompressedImage.cs" />
     <Compile Include="RLE.cs" />
     <Compile Include="VectorQuantization.cs" />
     <Page Include="MainWindow.xaml">

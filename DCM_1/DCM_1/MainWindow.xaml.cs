@@ -43,10 +43,10 @@ namespace DCM_1
 
         private string _fileName;
         private VectorQuantization _vq;
-        private Stopwatch _sompressStopWath;
+        private Stopwatch _compressStopWath;
         private Stopwatch _decompressStopWath;
         private readonly OpenFileDialog _openDialog = new OpenFileDialog();
-        private CompressedImage _compressed;
+        private ICompressedImage _compressed;
         private int _codeBookSizePow = 6;
         private byte[] _compressedData;
 
@@ -68,25 +68,21 @@ namespace DCM_1
 
         private void Decompress()
         {
-            _decompressStopWath = new Stopwatch();
-            _decompressStopWath.Start();
-            _compressed.FromByteArray(HuffmanEncoder.Decode(_compressedData));
-            var comprBitmap = new Bitmap(_compressed.Width, _compressed.Height);
-            var img = RLE.Decompress(_compressed.Image);
-            var k = 0;
-            for (int i = 0; i < comprBitmap.Width; i++)
+            Bitmap comprBitmap;
+            if (VQCompression)
             {
-                for (int j = 0; j < comprBitmap.Height; j++)
-                {
-                    var pos = img[k];
-                    comprBitmap.SetPixel(i, j,
-                        Color.FromArgb(_compressed.CodeBook[pos][0], _compressed.CodeBook[pos][2],
-                            _compressed.CodeBook[pos][1]));
-                    k++;
-                }
+                comprBitmap = VqDecompress();
             }
-            comprBitmap = ApplyHaarTransform(false, false, 1, comprBitmap);
-            _decompressStopWath.Stop();
+            else
+            {
+                _decompressStopWath = new Stopwatch();
+                _decompressStopWath.Start();
+                var comprImg = (DwtImage)_compressed;
+                comprImg.FromByteArray(HuffmanEncoder.Decode(_compressedData));
+                var img = RLE.DecompressImage(comprImg.Image, comprImg.Width, comprImg.Height);
+                comprBitmap = ApplyHaarTransform(false, false, CodeBookSizePow, img);
+                _decompressStopWath.Stop();
+            }
             var stream = new MemoryStream();
             comprBitmap.Save(stream, ImageFormat.Png);
             ResultImage.BeginInit();
@@ -95,9 +91,33 @@ namespace DCM_1
             OnPropertyChanged("ResultImage");
         }
 
+        private Bitmap VqDecompress()
+        {
+            _decompressStopWath = new Stopwatch();
+            _decompressStopWath.Start();
+            _compressed.FromByteArray(HuffmanEncoder.Decode(_compressedData));
+            var comprBitmap = new Bitmap(_compressed.Width, _compressed.Height);
+            var comprImg = (VqImage) _compressed;
+            var img = RLE.Decompress(comprImg.Image);
+            var k = 0;
+            for (int i = 0; i < comprBitmap.Width; i++)
+            {
+                for (int j = 0; j < comprBitmap.Height; j++)
+                {
+                    var pos = img[k];
+                    comprBitmap.SetPixel(i, j,
+                        Color.FromArgb(comprImg.CodeBook[pos][0], comprImg.CodeBook[pos][2],
+                            comprImg.CodeBook[pos][1]));
+                    k++;
+                }
+            }
+            _decompressStopWath.Stop();
+            return comprBitmap;
+        }
+
         private void VqCompress()
         {
-            _sompressStopWath = new Stopwatch();
+            _compressStopWath = new Stopwatch();
             _fileName = _openDialog.FileName;
             OnPropertyChanged("SourceImage");
             var bitmap = new Bitmap(_fileName);
@@ -120,7 +140,7 @@ namespace DCM_1
 
             _vq = new VectorQuantization(image, 3, (int)Math.Pow(2, CodeBookSizePow));
 
-            _compressed = new CompressedImage
+            _compressed = new VqImage
             {
                 Height = bitmap.Height,
                 Width = bitmap.Width,
@@ -146,10 +166,11 @@ namespace DCM_1
                 }
             }
             var rle = new RLE(img);
-            _compressed.Image = rle.Compress();
-            _compressedData = _compressed.ToByteArray();
+            var imgCompr = ((VqImage) _compressed);
+            imgCompr.Image = rle.Compress();
+            _compressedData = imgCompr.ToByteArray();
             _compressedData = HuffmanEncoder.Encode(_compressedData);
-            _sompressStopWath.Stop();
+            _compressStopWath.Stop();
         }
 
         private void Compress()
@@ -157,19 +178,19 @@ namespace DCM_1
             if(VQCompression) VqCompress();
             else
             {
-                _sompressStopWath = new Stopwatch();
+                _compressStopWath = new Stopwatch();
                 _fileName = _openDialog.FileName;
                 OnPropertyChanged("SourceImage");
                 var bitmap = new Bitmap(_fileName);
-                _sompressStopWath.Start();
-                bitmap = ApplyHaarTransform(true, false, 1, bitmap);
+                _compressStopWath.Start();
+                bitmap = ApplyHaarTransform(true, false, CodeBookSizePow, bitmap);
 
-                var rle = new RLE(img);
-                _compressed.Image = rle.Compress();
-                _compressedData = _compressed.ToByteArray();
+                var rle = new RLE(bitmap);
+                var imgCompr = new DwtImage {Height = bitmap.Height, Width = bitmap.Width, Image = rle.CompressImage()};
+                _compressedData = imgCompr.ToByteArray();
                 _compressedData = HuffmanEncoder.Encode(_compressedData);
-
-                _sompressStopWath.Stop();
+                _compressStopWath.Stop();
+                _compressed = imgCompr;
             }
             Wind.Dispatcher.Invoke(Decompress);
             Wind.Dispatcher.Invoke(SetResults);
@@ -195,7 +216,7 @@ namespace DCM_1
 
         private void SetResults()
         {
-            var val = _decompressStopWath.ElapsedMilliseconds / (double)_sompressStopWath.ElapsedMilliseconds;
+            var val = _decompressStopWath.ElapsedMilliseconds / (double)_compressStopWath.ElapsedMilliseconds;
             PerformanceComparison = string.Format("1/{0:F3}", val);
 
             SourceFileSize = _compressed.Width*_compressed.Height*4 + " байт";
@@ -215,70 +236,6 @@ namespace DCM_1
         {
             var handler = PropertyChanged;
             if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
-
-    struct DwtCompressedImage
-    {
-        public int[] Image;
-        public int Width;
-        public int Height;
-    }
-
-    struct CompressedImage
-    {
-        public int Width { get; set; }
-        public int Height { get; set; }
-        public byte[][] CodeBook { get; set; }
-        public Tuple<byte,ushort>[] Image { get; set; }
-
-        public void FromByteArray(byte[] data)
-        {
-            var int32 = new byte[4];
-            Array.Copy(data, int32, 4);
-            Width = BitConverter.ToInt32(int32, 0);
-            Array.Copy(data, 4, int32, 0, 4);
-            Height = BitConverter.ToInt32(int32, 0);
-            var cbSize = data[8];
-            var cb = new List<byte[]>();
-            for (int i = 0; i <= cbSize; i++)
-            {
-                var codeWord = new byte[3];
-                Array.Copy(data, 9 + i*3, codeWord, 0, 3);
-                cb.Add(codeWord);
-            }
-            CodeBook = cb.ToArray();
-
-            var img = new List<Tuple<byte, ushort>>(data.Length - 12 + cbSize*3);
-            for (int i = 12 + cbSize*3; i < data.Length - 2; i += 3)
-            {
-                var single = new byte[2];
-                Array.Copy(data, i + 1, single, 0, 2);
-                img.Add(new Tuple<byte, ushort>(data[i], BitConverter.ToUInt16(single, 0)));
-            }
-            Image = img.ToArray();
-        }
-
-        public byte[] ToByteArray()
-        {
-            var bytes = new List<byte>();
-
-            bytes.AddRange(BitConverter.GetBytes(Width));
-            bytes.AddRange(BitConverter.GetBytes(Height));
-
-            var cbSize = (byte) (CodeBook.Length - 1);
-            bytes.Add(cbSize);
-            foreach (var b in CodeBook)
-            {
-                bytes.AddRange(b);
-            }
-
-            foreach (var tuple in Image)
-            {
-                bytes.Add(tuple.Item1);
-                bytes.AddRange(BitConverter.GetBytes(tuple.Item2));
-            }
-            return bytes.ToArray();
         }
     }
 }
