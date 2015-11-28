@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -78,7 +79,12 @@ namespace DCM_1
                 _decompressStopWath = new Stopwatch();
                 _decompressStopWath.Start();
                 var comprImg = (DwtImage)_compressed;
-                comprImg.FromByteArray(HuffmanEncoder.Decode(_compressedData));
+                var deflate = new DeflateStream(new MemoryStream(_compressedData), CompressionMode.Decompress);
+                var comprStream = new MemoryStream();
+                deflate.CopyTo(comprStream);
+                _compressedData = comprStream.ToArray();
+                _compressedData = HuffmanEncoder.Decode(_compressedData);
+                comprImg.FromByteArray(_compressedData);
                 var img = RLE.DecompressImage(comprImg.Image, comprImg.Width, comprImg.Height);
                 comprBitmap = ApplyHaarTransform(false, false, CodeBookSizePow, img);
                 _decompressStopWath.Stop();
@@ -95,7 +101,12 @@ namespace DCM_1
         {
             _decompressStopWath = new Stopwatch();
             _decompressStopWath.Start();
-            _compressed.FromByteArray(HuffmanEncoder.Decode(_compressedData));
+            var deflate = new DeflateStream(new MemoryStream(_compressedData), CompressionMode.Decompress);
+            var comprStream = new MemoryStream();
+            deflate.CopyTo(comprStream);
+            _compressedData = comprStream.ToArray();
+            _compressedData = HuffmanEncoder.Decode(_compressedData);
+            _compressed.FromByteArray(_compressedData);
             var comprBitmap = new Bitmap(_compressed.Width, _compressed.Height);
             var comprImg = (VqImage) _compressed;
             var img = RLE.Decompress(comprImg.Image);
@@ -170,6 +181,17 @@ namespace DCM_1
             imgCompr.Image = rle.Compress();
             _compressedData = imgCompr.ToByteArray();
             _compressedData = HuffmanEncoder.Encode(_compressedData);
+            byte[] result;
+
+            using (var resultStream = new MemoryStream())
+            {
+                using (var compressionStream = new DeflateStream(resultStream, CompressionLevel.Optimal))
+                {
+                    compressionStream.Write(_compressedData, 0, _compressedData.Length);
+                }
+                result = resultStream.ToArray();
+            }
+            _compressedData = result;
             _compressStopWath.Stop();
         }
 
@@ -189,6 +211,17 @@ namespace DCM_1
                 var imgCompr = new DwtImage {Height = bitmap.Height, Width = bitmap.Width, Image = rle.CompressImage()};
                 _compressedData = imgCompr.ToByteArray();
                 _compressedData = HuffmanEncoder.Encode(_compressedData);
+                byte[] result;
+
+                using (var resultStream = new MemoryStream())
+                {
+                    using (var compressionStream = new DeflateStream(resultStream, CompressionLevel.Optimal))
+                    {
+                        compressionStream.Write(_compressedData, 0, _compressedData.Length);
+                    }
+                    result = resultStream.ToArray();
+                }
+                _compressedData = result;
                 _compressStopWath.Stop();
                 _compressed = imgCompr;
             }
